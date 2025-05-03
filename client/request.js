@@ -69,7 +69,7 @@ function createLayout(element) {
 
 // 计算布局树
 function updateLayoutTree(element, top = 0, parentTop = 0) {
-  const computedStyle = element.computedStyle; 
+  const computedStyle = element.computedStyle;
   element.layout = {
     top: top + parentTop,
     left: 0,
@@ -90,7 +90,7 @@ function createNewLayer(element, layers) {
   let created = true;
   const attributes = element.attributes;
   Object.entries(attributes).forEach(([key, value]) => {
-    if(key === 'style') {
+    if (key === 'style') {
       const attributes = value.split(';');
       attributes.forEach((attribute) => {
         const [property, value] = attribute.split(/:\s*/);
@@ -108,6 +108,24 @@ function createLayerTree(element, layers) {
   element.children = element.children.filter((child) => createNewLayer(child, layers));
   element.children.forEach((child) => createLayerTree(child, layers));
   return layers;
+}
+
+//
+function compositeLayers(layers) {
+  return layers.map(layout => paint(layout));
+}
+function paint(element, paintSteps = []) {
+  const { background = 'black', color = 'black', top = 0, left = 0, width = 100, height = 0 } = element.layout;
+  if (element.type === 'text') {
+    paintSteps.push(`ctx.font = '20px Impact;'`);
+    paintSteps.push(`ctx.strokeStyle = '${color}';`);
+    paintSteps.push(`ctx.strokeText("${element.text.replace(/(^\s+|\s+$)/g, '')}", ${left},${top + 20});`);
+  } else {
+    paintSteps.push(`ctx.fillStyle="${background}";`);
+    paintSteps.push(`ctx.fillRect(${left},${top}, ${parseInt(width)}, ${parseInt(height)});`);
+  }
+  element.children.forEach(child => paint(child, paintSteps));
+  return paintSteps;
 }
 
 /** 浏览器主进程 **/
@@ -216,7 +234,9 @@ render.on('commitNavigation', function (response) {
       // 根据布局树生成分层树
       const layers = [layoutTree];
       createLayerTree(layoutTree, layers);
-      console.dir(layers, { depth: null });
+      // 根据分层树进行生成绘制步骤并复合图层
+      const paintSteps = compositeLayers(layers);
+      console.log(paintSteps.flat().join('\r\n'));
       //触发DOMContentLoaded事件
       main.emit('DOMContentLoaded');
       //9.HTML解析完毕和加载子资源页面加载完成后会通知主进程页面加载完成
