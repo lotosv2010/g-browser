@@ -11,6 +11,7 @@ Array.prototype.top = function () {
   return this[this.length - 1];
 }
 
+// 计算样式
 function recalculateStyle(cssRules, element, parentComputedStyle = {}) {
   const attributes = element.attributes;
   element.computedStyle = { color: parentComputedStyle.color }; // 计算样式
@@ -38,6 +39,32 @@ function recalculateStyle(cssRules, element, parentComputedStyle = {}) {
     }
   });
   element.children.forEach(child => recalculateStyle(cssRules, child, element.computedStyle));
+}
+
+// 创建布局树
+function isShow(element) {
+  let show = true;
+  if (element.tagName === 'style' || element.tagName === 'script' || element.tagName === 'meta' || element.tagName === 'link') {
+    show = false;
+  }
+  const attributes = element.attributes;
+  Object.entries(attributes).forEach(([key, value]) => {
+    if (key === 'style') {
+      const attributes = value.split(';');
+      attributes.forEach((attribute) => {
+        const [property, value] = attribute.split(/:\s*/);
+        if (property === 'display' && value === 'none') {
+          show = false;
+        }
+      });
+    }
+  });
+  return show;
+}
+function createLayout(element) {
+  element.children = element.children.filter(isShow);
+  element.children.forEach((child) => createLayout(child));
+  return element;
 }
 
 /** 浏览器主进程 **/
@@ -137,7 +164,11 @@ render.on('commitNavigation', function (response) {
       main.emit('confirmNavigation');
       // 通过stylesheet计算出DOM节点的样式
       recalculateStyle(cssRules, document);
-      console.dir(document, { depth: null });
+      // 根据DOM树创建布局树,就是复制DOM结构并过滤掉不显示的元素
+      const html = document.children[0];
+      const body = html.children[1];
+      const layoutTree = createLayout(body);
+      console.dir(layoutTree, { depth: null });
       //触发DOMContentLoaded事件
       main.emit('DOMContentLoaded');
       //9.HTML解析完毕和加载子资源页面加载完成后会通知主进程页面加载完成
