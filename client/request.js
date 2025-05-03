@@ -1,7 +1,7 @@
 const http = require('http');
 const htmlparser2 = require('htmlparser2');
 const css = require('css');
-// const { createCanvas } = require('canvas');
+const { createCanvas } = require('canvas');
 const fs = require('fs');
 const main = require('./main.js');
 const network = require('./network.js');
@@ -135,16 +135,17 @@ function paint(element, paintSteps = []) {
 
 // 合成线程
 function splitTiles(paintSteps) {
+  // 切割成一个个的小图
   return paintSteps;
 }
 function raster(tiles) {
-  //11.栅格化线程会把图片(tile)转化为位图
+  // 栅格化线程会把图片(tile)转化为位图
   tiles.forEach(tile => rasterThread(tile));
-  //13.当所有的图块都光栅化之后合成线程会发送绘制图块的命令给浏览器主进程
-  // main.emit('drawQuad');
+  // 当所有的图块都光栅化之后合成线程会发送绘制图块的命令给浏览器主进程
+  main.emit('drawQuad');
 }
 function rasterThread(tile) {
-  //12.而其实栅格化线程在工作的时候会把栅格化的工作交给GPU进程来完成
+  // 而其实栅格化线程在工作的时候会把栅格化的工作交给GPU进程来完成
   gpu.emit('raster', tile);
 }
 
@@ -320,5 +321,5 @@ gpu.on('raster', (tile) => {
 });
 
 //1.主进程接收用户输入的URL
-// main.emit('request', { host, port, path: '/index.html' });
-main.emit('request', { host, port, path: '/load.html' });
+main.emit('request', { host, port, path: '/index.html' });
+// main.emit('request', { host, port, path: '/load.html' });
