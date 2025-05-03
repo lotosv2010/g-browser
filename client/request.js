@@ -1,5 +1,6 @@
 const http = require('http');
 const htmlparser2 = require('htmlparser2');
+const css = require('css');
 const main = require('./main.js');
 const network = require('./network.js');
 const render = require('./render.js');
@@ -49,6 +50,7 @@ render.on('commitNavigation', function (response) {
   if (contentType.indexOf('text/html') !== -1) {
     //1. 渲染进程把HTML转变为DOM树型结构
     const document = { type: 'document', attributes: {}, children: [] };
+    const cssRules = [];
     const tokenStack = [document];
     const parser = new htmlparser2.Parser({
       onopentag(name, attributes = {}) {
@@ -81,7 +83,16 @@ render.on('commitNavigation', function (response) {
        * 然后再构建DOM树，重新计算样式，构建布局树，绘制页面
        * @param {*} tagname 
        */
-      onclosetag() {
+      onclosetag(tagName) {
+        switch(tagName) {
+          case 'style':
+            const styleToken = tokenStack.top();
+            const cssAST = css.parse(styleToken.children[0].text);
+            cssRules.push(...cssAST.stylesheet.rules);
+            break;
+          default:
+            break;
+        }
         tokenStack.pop();
       },
     });
@@ -95,7 +106,8 @@ render.on('commitNavigation', function (response) {
     response.on('end', () => {
       //let resultBuffer = Buffer.concat(buffers);
       //let html = resultBuffer.toString();
-      console.dir(document, { depth: null });
+      // console.dir(document, { depth: null });
+      console.dir(cssRules, { depth: null });
       //7.HTML接收接受完毕后通知主进程确认导航
       main.emit('confirmNavigation');
       //触发DOMContentLoaded事件
