@@ -67,6 +67,24 @@ function createLayout(element) {
   return element;
 }
 
+// 计算布局树
+function updateLayoutTree(element, top = 0, parentTop = 0) {
+  const computedStyle = element.computedStyle; 
+  element.layout = {
+    top: top + parentTop,
+    left: 0,
+    width: computedStyle.width,
+    height: computedStyle.height,
+    backgroundColor: computedStyle.backgroundColor || computedStyle['background-color'],
+    color: computedStyle.color
+  }
+  let childTop = 0;
+  element.children.forEach((child) => {
+    updateLayoutTree(child, childTop, element.layout.top);
+    childTop += parseInt(child.computedStyle.height || 0);
+  });
+}
+
 /** 浏览器主进程 **/
 main.on('request', function (options) {
   //2.主进程把该URL转发给网络进程
@@ -168,7 +186,9 @@ render.on('commitNavigation', function (response) {
       const html = document.children[0];
       const body = html.children[1];
       const layoutTree = createLayout(body);
-      console.dir(layoutTree, { depth: null });
+      // 并计算各个元素的布局信息
+      updateLayoutTree(layoutTree);
+      console.dir(document, { depth: null });
       //触发DOMContentLoaded事件
       main.emit('DOMContentLoaded');
       //9.HTML解析完毕和加载子资源页面加载完成后会通知主进程页面加载完成
