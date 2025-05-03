@@ -85,6 +85,31 @@ function updateLayoutTree(element, top = 0, parentTop = 0) {
   });
 }
 
+// 计算层树
+function createNewLayer(element, layers) {
+  let created = true;
+  const attributes = element.attributes;
+  Object.entries(attributes).forEach(([key, value]) => {
+    if(key === 'style') {
+      const attributes = value.split(';');
+      attributes.forEach((attribute) => {
+        const [property, value] = attribute.split(/:\s*/);
+        if (property === 'position' && value === 'absolute') {
+          updateLayoutTree(element); // 对单独的层重新计算位置
+          layers.push(element);
+          created = false;
+        }
+      });
+    }
+  });
+  return created;
+}
+function createLayerTree(element, layers) {
+  element.children = element.children.filter((child) => createNewLayer(child, layers));
+  element.children.forEach((child) => createLayerTree(child, layers));
+  return layers;
+}
+
 /** 浏览器主进程 **/
 main.on('request', function (options) {
   //2.主进程把该URL转发给网络进程
@@ -186,9 +211,12 @@ render.on('commitNavigation', function (response) {
       const html = document.children[0];
       const body = html.children[1];
       const layoutTree = createLayout(body);
-      // 并计算各个元素的布局信息
+      // 计算各个元素的布局信息
       updateLayoutTree(layoutTree);
-      console.dir(document, { depth: null });
+      // 根据布局树生成分层树
+      const layers = [layoutTree];
+      createLayerTree(layoutTree, layers);
+      console.dir(layers, { depth: null });
       //触发DOMContentLoaded事件
       main.emit('DOMContentLoaded');
       //9.HTML解析完毕和加载子资源页面加载完成后会通知主进程页面加载完成
